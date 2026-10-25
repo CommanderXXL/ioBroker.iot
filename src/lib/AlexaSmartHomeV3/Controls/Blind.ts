@@ -14,8 +14,8 @@ import type {
 
 const INSTANCE = 'Blind.Lift';
 // Alexa values in percent; level.blind: min = fully closed, max = fully open
-const CLOSED = 0;
-const OPEN = 100;
+const CLOSED = 100;
+const OPEN = 0;
 
 function setRangeValue(actions: string[], rangeValue: number): AlexaV3ActionMapping {
     return { '@type': 'ActionsToDirective', actions, directive: { name: 'SetRangeValue', payload: { rangeValue } } };
@@ -23,7 +23,7 @@ function setRangeValue(actions: string[], rangeValue: number): AlexaV3ActionMapp
 
 /**
  * Amazon's model for blinds: Alexa.RangeController with the instance "Blind.Lift" and semantics.
- * With it Alexa understands "open/close the blind" and knows that 0 % means closed and 100 % means open.
+ * With it Alexa understands "open/close the blind" and knows that 0 % means open and 100 % means closed.
  *
  * @see https://developer.amazon.com/en-US/docs/alexa/device-apis/alexa-rangecontroller.html#discover-blinds
  */
@@ -43,7 +43,7 @@ class BlindLiftController extends RangeController {
                 friendlyNames: [{ '@type': 'asset', value: { assetId: 'Alexa.Setting.Opening' } }],
             },
             configuration: {
-                supportedRange: { minimumValue: CLOSED, maximumValue: OPEN, precision: 1 },
+                supportedRange: { minimumValue: OPEN, maximumValue: CLOSED, precision: 1 },
                 unitOfMeasure: 'Alexa.Unit.Percent',
             },
             // no stateMappings: they only serve state queries, and Discovery sends retrievable = false
@@ -83,7 +83,7 @@ export default class Blind extends AdjustableControl {
     async adjustValue(event: AlexaV3Request, property: PropertiesBase): Promise<AlexaV3DirectiveValue> {
         const { rangeValueDelta, rangeValueDeltaDefault } = event.directive.payload;
         if (rangeValueDeltaDefault && rangeValueDelta) {
-            const target = rangeValueDelta < 0 ? CLOSED : OPEN;
+            const target = rangeValueDelta < 0 ? OPEN : CLOSED;
             await this.setState(property, property.value(target) as ioBroker.StateValue);
             return target;
         }
