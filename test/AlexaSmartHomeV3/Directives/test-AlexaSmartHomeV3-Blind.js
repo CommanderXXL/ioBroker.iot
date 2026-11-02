@@ -67,8 +67,8 @@ describe('AlexaSmartHomeV3 - Blind', function () {
 
             const close = capability.semantics.actionMappings.find(m => m.actions.includes('Alexa.Actions.Close'));
             const open = capability.semantics.actionMappings.find(m => m.actions.includes('Alexa.Actions.Open'));
-            assert.deepEqual(close.directive, { name: 'SetRangeValue', payload: { rangeValue: 0 } });
-            assert.deepEqual(open.directive, { name: 'SetRangeValue', payload: { rangeValue: 100 } });
+            assert.deepEqual(close.directive, { name: 'SetRangeValue', payload: { rangeValue: 100 } });
+            assert.deepEqual(open.directive, { name: 'SetRangeValue', payload: { rangeValue: 0 } });
         });
     });
 
