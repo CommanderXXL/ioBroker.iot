@@ -87,13 +87,13 @@ describe('AlexaSmartHomeV3 - Blind', function () {
     describe('Handling', function () {
         // payloads as Alexa (de-DE) sends them for the utterance in the comment
         const cases = [
-            ['close (Alexa.Actions.Close)', 'SetRangeValue', { rangeValue: 0 }, 0], // "schließe Rollo"
-            ['open (Alexa.Actions.Open)', 'SetRangeValue', { rangeValue: 100 }, 100], // "öffne Rollo"
+            ['close (Alexa.Actions.Close)', 'SetRangeValue', { rangeValue: 100 }, 100], // "schließe Rollo"
+            ['open (Alexa.Actions.Open)', 'SetRangeValue', { rangeValue: 0 }, 0], // "öffne Rollo"
             ['set to 30 %', 'SetRangeValue', { rangeValue: 30 }, 30], // "stelle Rollo auf dreißig Prozent"
-            ['lower by 10 %', 'AdjustRangeValue', { rangeValueDelta: -10, rangeValueDeltaDefault: false }, 20], // "senke Rollo um zehn Prozent"
-            ['down without amount', 'AdjustRangeValue', { rangeValueDelta: -1, rangeValueDeltaDefault: true }, 0], // "Rollo runter"
-            ['up without amount', 'AdjustRangeValue', { rangeValueDelta: 1, rangeValueDeltaDefault: true }, 100], // "Rollo hoch"
-            ['all the way down', 'AdjustRangeValue', { rangeValueDelta: -100, rangeValueDeltaDefault: false }, 0], // "fahre Rollo ganz runter"
+            ['lower by 10 %', 'AdjustRangeValue', { rangeValueDelta: 10, rangeValueDeltaDefault: false }, 40], // "senke Rollo um zehn Prozent"
+            ['down without amount', 'AdjustRangeValue', { rangeValueDelta: 1, rangeValueDeltaDefault: true }, 100], // "Rollo runter"
+            ['up without amount', 'AdjustRangeValue', { rangeValueDelta: -1, rangeValueDeltaDefault: true }, 0], // "Rollo hoch"
+            ['all the way down', 'AdjustRangeValue', { rangeValueDelta: 100, rangeValueDeltaDefault: false }, 100], // "fahre Rollo ganz runter"
         ];
 
         for (const [title, name, payload, expected] of cases) {
