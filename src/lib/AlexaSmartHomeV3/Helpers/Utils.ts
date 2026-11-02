@@ -76,6 +76,9 @@ const SMART_TYPES: { [name: string]: Types } = {
     blinds: Types.blind, // error in the GUI
     levelSlider: Types.slider, // error in the GUI
     TV: Types.button,
+    // e.g. a state of the scene adapter: true activates it
+    SCENE_TRIGGER: Types.button,
+    ACTIVITY_TRIGGER: Types.button,
 };
 
 function getSmartNameFromObj(
@@ -189,17 +192,14 @@ export function configuredRangeOrDefault(state: IotExternalDetectorState): {
     if (state.common?.type === 'boolean') {
         return { min: false, max: true };
     }
-    const configuredMin = state.common?.min;
-    const configuredMax = state.common?.max;
-    const configuredStep = state.common?.step;
-    const min =
-        configuredMin === undefined || isNaN(configuredMin) ? 0 : parseFloat(configuredMin as unknown as string);
-    const max =
-        configuredMax === undefined || isNaN(configuredMax) ? 100 : parseFloat(configuredMax as unknown as string);
-    const step =
-        configuredStep === undefined || isNaN(configuredStep)
-            ? (max - min) / 10
-            : parseFloat(configuredStep as unknown as string);
+    // null or '' is no limit: parseFloat() would make NaN of it, and NaN breaks every clamp to the range
+    const toNumber = (value: unknown): number | undefined => {
+        const num = typeof value === 'number' ? value : parseFloat(value as string);
+        return Number.isFinite(num) ? num : undefined;
+    };
+    const min = toNumber(state.common?.min) ?? 0;
+    const max = toNumber(state.common?.max) ?? 100;
+    const step = toNumber(state.common?.step) ?? (max - min) / 10;
 
     return { min, max, step };
 }

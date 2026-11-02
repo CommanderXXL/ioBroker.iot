@@ -4,6 +4,7 @@ const DeviceManager = require('../../../build/lib/AlexaSmartHomeV3/DeviceManager
 const Device = require('../../../build/lib/AlexaSmartHomeV3/Device').default;
 const Directives = require('../../../build/lib/AlexaSmartHomeV3/Alexa/Directives').default;
 const AdapterProvider = require('../../../build/lib/AlexaSmartHomeV3/Helpers/AdapterProvider').default;
+const Controls = require('../../../build/lib/AlexaSmartHomeV3/Controls').default;
 
 let endpointId;
 let friendlyName;
@@ -181,6 +182,8 @@ describe('AlexaSmartHomeV3 - Discovery', function () {
             );
             assert.equal(response.event.payload.endpoints[0].capabilities[1].configuration.supportedModes.length, 1);
             assert.equal(response.event.payload.endpoints[0].capabilities[1].configuration.supportedModes[0], 'AUTO');
+            // the tile in the Alexa app asks for the values, otherwise it stays loading
+            assert.equal(response.event.payload.endpoints[0].capabilities[1].properties.retrievable, true);
         });
 
         it('Discovery of a thermostat with states', async function () {
@@ -222,6 +225,30 @@ describe('AlexaSmartHomeV3 - Discovery', function () {
             assert.equal(response.event.payload.endpoints[0].capabilities[1].configuration.supportedModes.length, 3);
             assert.equal(response.event.payload.endpoints[0].capabilities[1].configuration.supportedModes[0], 'AUTO');
             assert.equal(response.event.payload.endpoints[0].capabilities[1].configuration.supportedModes[2], 'ECO');
+        });
+
+        // e.g. HomeMatic: MANU has no Alexa mode, and two values may give the same mode (#1070)
+        it('Discovery of a thermostat with modes unknown to Alexa', async function () {
+            const event = await helpers.getSample('Discovery/Discovery.request.json');
+            const config = JSON.parse(JSON.stringify(helpers.thermostatFullConfig()));
+            config.states.find(state => state.name === 'MODE').common.states = {
+                0: 'AUTO',
+                1: 'MANU',
+                2: 'ECO',
+                3: 'AUTO-BOOST',
+            };
+
+            const deviceManager = new DeviceManager();
+            deviceManager.addDevice(
+                new Device({ id: endpointId, friendlyName, controls: [new Controls.Thermostat(config)] }),
+            );
+
+            const response = await deviceManager.handleAlexaEvent(event);
+
+            const thermostat = response.event.payload.endpoints[0].capabilities.find(
+                capability => capability.interface === 'Alexa.ThermostatController',
+            );
+            assert.deepEqual(thermostat.configuration.supportedModes, ['AUTO', 'ECO']);
         });
 
         it('Discovery of a motion sensor', async function () {
@@ -657,6 +684,38 @@ describe('AlexaSmartHomeV3 - Discovery', function () {
 
             assert.equal(response.event.payload.endpoints[0].capabilities[1].properties.supported.length, 1);
             assert.equal(response.event.payload.endpoints[0].capabilities[1].properties.supported[0].name, 'rangeValue');
+        });
+
+        // the skill does not forward ChangeReports to Alexa, so Alexa has to ask for the state
+        it('Every property is retrievable, none is proactively reported', async function () {
+            const event = await helpers.getSample('Discovery/Discovery.request.json');
+
+            const deviceManager = new DeviceManager();
+            const controls = {
+                light: helpers.dimmerControl(),
+                thermostat: helpers.thermostatFullControl(),
+                temperature: helpers.temperatureControl(),
+                blind: helpers.blindsControl(),
+                lock: helpers.lockControl(),
+                slider: helpers.sliderControl(),
+            };
+            Object.entries(controls).forEach(([id, control]) =>
+                deviceManager.addDevice(new Device({ id, friendlyName: id, controls: [control] })),
+            );
+
+            const response = await deviceManager.handleAlexaEvent(event);
+            const endpoints = response.event.payload.endpoints;
+            assert.equal(endpoints.length, Object.keys(controls).length);
+
+            endpoints.forEach(endpoint =>
+                endpoint.capabilities
+                    .filter(capability => capability.properties)
+                    .forEach(capability => {
+                        const name = `${endpoint.endpointId}: ${capability.interface}`;
+                        assert.equal(capability.properties.retrievable, true, name);
+                        assert.equal(capability.properties.proactivelyReported, false, name);
+                    }),
+            );
         });
     });
 });
