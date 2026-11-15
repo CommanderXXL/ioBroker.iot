@@ -8,7 +8,8 @@ name: Test and Release
 on:
     push:
         branches:
-            - '*'
+            - main
+            - master
         tags:
             # normal versions
             - 'v?[0-9]+.[0-9]+.[0-9]+'
@@ -53,32 +54,70 @@ jobs:
                   node-version: ${{ matrix.node-version }}
                   screenshots-path: 'tmp/screenshots/**/*.png'
 
-    # Deploys the final package to NPM
-    deploy:
+    build-and-push:
         needs: [check-and-lint, adapter-tests]
-
-        # Permissions are required to create GitHub releases and npm trusted publishing
-        permissions:
-            contents: write
-            id-token: write
-
-        # Trigger this step only when a commit on any branch is tagged with a version number
-        if: |
-            contains(github.event.head_commit.message, '[skip ci]') == false &&
-            github.event_name == 'push' &&
-            startsWith(github.ref, 'refs/tags/v')
-
+        
         runs-on: ubuntu-latest
 
         steps:
-            - uses: ioBroker/testing-action-deploy@v1
-              with:
-                  node-version: '24.x'
-                  build: true
-                  github-token: ${{ secrets.GITHUB_TOKEN }}
-                  sentry: true
-                  sentry-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
-                  sentry-url: 'https://sentry.iobroker.net'
-                  sentry-org: 'iobroker'
-                  sentry-project: 'iobroker-iot'
-                  sentry-version-prefix: 'iobroker.iot'
+          - name: Checkout Repository
+            uses: actions/checkout@v4
+
+          - name: Setup Node.js
+            uses: actions/setup-node@v4
+            with:
+              node-version: '24'
+              cache: 'npm'
+
+          - name: Install dependencies
+            run: npm ci
+
+          - name: Build adapter
+            run: npm run build
+
+          - name: Push build files to branch
+            run: |
+              git config --local user.email "github-actions[bot]@users.noreply.github.com"
+              git config --local user.name "github-actions[bot]"
+          
+              # Temporären Branch für den Build anlegen
+              git checkout -B build-deploy
+          
+              # Kompilierte Ordner trotz .gitignore erzwingen (ggf. Pfade anpassen, falls admin/ gebaut wird)
+              git add -f build/
+          
+              # Änderungen committen (ignoriert Fehler, falls sich nichts geändert hat)
+              git commit -m "chore: build artifacts for ioBroker [skip ci]" || exit 0
+          
+              # Branch in das Repository pushen
+              git push -f origin build-deploy
+
+    # Deploys the final package to NPM
+    #deploy:
+    #    needs: [check-and-lint, adapter-tests]
+
+        # Permissions are required to create GitHub releases and npm trusted publishing
+    #    permissions:
+    #        contents: write
+    #        id-token: write
+
+        # Trigger this step only when a commit on any branch is tagged with a version number
+    #    if: |
+    #        contains(github.event.head_commit.message, '[skip ci]') == false &&
+    #        github.event_name == 'push' &&
+    #        startsWith(github.ref, 'refs/tags/v')
+
+    #    runs-on: ubuntu-latest
+
+    #    steps:
+    #        - uses: ioBroker/testing-action-deploy@v1
+    #          with:
+    #              node-version: '24.x'
+    #              build: true
+    #              github-token: ${{ secrets.GITHUB_TOKEN }}
+    #              sentry: true
+    #              sentry-token: ${{ secrets.SENTRY_AUTH_TOKEN }}
+    #              sentry-url: 'https://sentry.iobroker.net'
+    #              sentry-org: 'iobroker'
+    #              sentry-project: 'iobroker-iot'
+    #              sentry-version-prefix: 'iobroker.iot'
