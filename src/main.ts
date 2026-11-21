@@ -2,7 +2,6 @@ import type { device as DeviceModule } from 'aws-iot-device-sdk';
 import { Adapter, type AdapterOptions, EXIT_CODES, Credentials } from '@iobroker/adapter-core'; // Get common adapter utils
 import { readFileSync } from 'node:fs';
 import axios from 'axios';
-import { deflateSync } from 'node:zlib';
 import type { EventEmitter } from 'node:events';
 
 import AlexaSH3 from './lib/alexaSmartHomeV3';
@@ -12,14 +11,14 @@ import GoogleHome from './lib/googleHome';
 import YandexAlisa from './lib/alisa';
 import Remote, { type SOCKET_MESSAGE, type SOCKET_TRUNK } from './lib/remote';
 import ConnectionDiagnostics, { type MqttPacket } from './lib/connectionDiagnostics';
-import { createIotDevice } from './lib/createIotDevice';
+import { createIotDevice, detachIotDevice } from './lib/createIotDevice';
 import { handleGeofenceData, handleDevicesData, handleSendToAdapter, handleGetInstances } from './lib/visuApp';
 import { buildMessageFromNotification } from './lib/notifications';
 import { AppNotifications } from './lib/appNotifications';
 import type { IotAdapterConfig } from './lib/types';
+import { MAX_IOT_MESSAGE_LENGTH, packMessage } from './lib/iotMessage';
 
 const NONE = '___none___';
-const MAX_IOT_MESSAGE_LENGTH = 127 * 1024;
 const IOT_KEEPALIVE_SEC = 60;
 const SPECIAL_ADAPTERS = ['netatmo'];
 const ALLOWED_SERVICES = SPECIAL_ADAPTERS.concat(['text2command']);
@@ -1193,7 +1192,7 @@ class IotAdapter extends Adapter {
                 // The discarded client must not influence the new one anymore: its "error" handler could start
                 // yet another device and its "close" handler would report a disconnect of the new connection.
                 try {
-                    (device as EventEmitter).removeAllListeners();
+                    detachIotDevice(device);
                 } catch {
                     // ignore
                 }
@@ -1471,7 +1470,7 @@ class IotAdapter extends Adapter {
                                 // the limit is in bytes: names with umlauts or cyrillic letters need more bytes than characters
                                 const msgBytes = msg ? Buffer.byteLength(msg) : 0;
                                 if (msgBytes > MAX_IOT_MESSAGE_LENGTH) {
-                                    const packed = deflateSync(msg).toString('base64');
+                                    const packed = packMessage(msg);
                                     this.log.debug(
                                         `[REMOTE] Content was packed from ${msgBytes} bytes to ${packed.length} bytes`,
                                     );
